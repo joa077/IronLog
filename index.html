@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IronLog - Workout Tracker</title>
+  <style>
+    :root {
+      --bg-main: #0c0f14;
+      --bg-card: #151a23;
+      --bg-input: #1e2430;
+      --border-color: #2b3240;
+      --accent-cyan: #00f2fe;
+      --accent-green: #39ff14;
+      --accent-orange: #ff9f1a;
+      --accent-danger: #ff4757;
+      --text-main: #f3f6fa;
+      --text-muted: #8b97a8;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding-bottom: 60px;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      background-color: rgba(21, 26, 35, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      z-index: 100;
+      padding: 12px 16px 6px;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 650px;
+      margin: 0 auto 10px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #fff, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-actions button {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
+    .days-nav {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      max-width: 650px;
+      margin: 0 auto;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+    .days-nav::-webkit-scrollbar { display: none; }
+
+    .day-tab {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      padding: 8px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: left;
+      min-width: 110px;
+    }
+
+    .day-tab .tab-index {
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .day-tab .tab-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+    }
+
+    .day-tab.active {
+      background: rgba(0, 242, 254, 0.08);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+    }
+
+    .app-container {
+      max-width: 650px;
+      margin: 16px auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .card-header h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .subtext {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      background: rgba(0, 242, 254, 0.12);
+      color: var(--accent-cyan);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+    }
+
+    .day-edit-wrapper {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+    }
+
+    .day-info { flex: 1; }
+
+    .input-transparent-title {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--accent-cyan);
+      padding: 10px 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      outline: none;
+    }
+
+    .field-group { margin-bottom: 12px; }
+
+    .exercise-comment-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-main);
+      padding: 12px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    .select-intensity {
+      font-weight: 600;
+      color: #ffda79;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px dashed var(--border-color);
+      margin: 16px 0;
+    }
+
+    .add-exercise-box {
+      background: rgba(30, 36, 48, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+
+    .box-title {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .sets-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .sets-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .set-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .set-label {
+      width: 35px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .set-inputs {
+      display: flex;
+      flex: 1;
+      gap: 8px;
+    }
+
+    .btn-remove-set {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0 8px;
+    }
+
+    .btn-remove-set:hover { color: var(--accent-danger); }
+
+    .builder-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 12px 14px;
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.1s ease;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #0c0f14;
+      width: 100%;
+      padding: 15px;
+      font-size: 1rem;
+    }
+
+    .btn-accent {
+      background: rgba(0, 242, 254, 0.15);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+    }
+
+    .btn-secondary-compact {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+
+    .btn-danger-soft {
+      background: rgba(255, 71, 87, 0.1);
+      color: var(--accent-danger);
+      border: 1px solid rgba(255, 71, 87, 0.2);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    .staged-exercises-container { margin-bottom: 16px; }
+
+    .staged-exercises-container h4 {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .staged-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .staged-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+    }
+
+    .staged-info h5 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .item-comment {
+      font-size: 0.8rem;
+      color: #7bed9f;
+      font-weight: normal;
+      font-style: italic;
+    }
+
+    .staged-info p {
+      font-size: 0.85rem;
+      color: var(--text-main);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .btn-remove-staged {
+      background: transparent;
+      border: none;
+      color: var(--accent-danger);
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .session-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+
+    .session-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+    }
+
+    .session-title-tag {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+    }
+
+    .session-date {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .session-exercises-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .session-exercise-entry {
+      background: rgba(12, 15, 20, 0.4);
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      border-left: 3px solid var(--accent-cyan);
+    }
+
+    .entry-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .entry-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .intensity-pill {
+      font-size: 0.7rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: rgba(255, 159, 26, 0.15);
+      color: var(--accent-orange);
+      border: 1px solid rgba(255, 159, 26, 0.3);
+      font-weight: 600;
+    }
+
+    .sets-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-content">
+      <div class="logo">
+        <span class="icon">⚡</span>
+        <h1>IronLog</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btn-export" type="button">💾 Exportar</button>
+        <button id="btn-import-trigger" type="button">📂 Importar</button>
+        <input type="file" id="file-import" accept=".json" style="display: none;">
+      </div>
+    </div>
+
+    <nav class="days-nav" id="days-nav">
+      <button type="button" class="day-tab active" data-day="1">
+        <span class="tab-index">Día 1</span>
+        <span class="tab-name">Día 1 - Empuje / Pecho</span>
+      </button>
+      <button type="button" class="day-tab" data-day="2">
+        <span class="tab-index">Día 2</span>
+        <span class="tab-name">Día 2 - Tracción / Espalda</span>
+      </button>
+      <button type="button" class="day-tab" data-day="3">
+        <span class="tab-index">Día 3</span>
+        <span class="tab-name">Día 3 - Pierna Cuádriceps</span>
+      </button>
+      <button type="button" class="day-tab" data-day="4">
+        <span class="tab-index">Día 4</span>
+        <span class="tab-name">Día 4 - Hombro & Core</span>
+      </button>
+      <button type="button" class="day-tab" data-day="5">
+        <span class="tab-index">Día 5</span>
+        <span class="tab-name">Día 5 - Pierna Posterior</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="app-container">
+
+    <section class="card day-meta-card">
+      <div class="day-edit-wrapper">
+        <div class="day-info">
+          <label for="day-name-input">Nombre de esta rutina / Día:</label>
+          <input type="text" id="day-name-input" class="input-transparent-title" placeholder="Ej: Día 5 - Pierna Posterior">
+        </div>
+        <button id="btn-save-day-name" type="button" class="btn btn-secondary-compact">✏️ Renombrar</button>
+      </div>
+    </section>
+
+    <section class="card session-builder-card">
+      <div class="card-header">
+        <div>
+          <h2>Armar Sesión de Hoy</h2>
+          <span class="subtext">Agrega ejercicios y luego archiva la rutina completa</span>
+        </div>
+        <span class="badge" id="session-count-badge">0 ejercicios</span>
+      </div>
+
+      <div class="field-group">
+        <label for="session-tag">Etiqueta de Sesión / Fecha</label>
+        <input type="text" id="session-tag" placeholder="Ej: Semana 1 - Lunes">
+      </div>
+
+      <hr class="divider">
+
+      <div class="add-exercise-box">
+        <h3 class="box-title">Agregar Ejercicio</h3>
+        
+        <div class="exercise-comment-row">
+          <div>
+            <label for="exercise-name">Ejercicio</label>
+            <input type="text" id="exercise-name" placeholder="Ej: Press Banca">
+          </div>
+          <div>
+            <label for="exercise-comment">Observación / Nota</label>
+            <input type="text" id="exercise-comment" placeholder="Ej: Agarre cerrado, molestia hombro">
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label for="exercise-intensity">Intensidad / Cercanía al Fallo</label>
+          <select id="exercise-intensity" class="select-intensity">
+            <option value="RIR 0 (Fallo)">🔥 RIR 0 - Fallo Muscular Total</option>
+            <option value="RIR 1 (1 en recámara)" selected>⚡ RIR 1 - A 1 repetición del fallo</option>
+            <option value="RIR 2 (2 en recámara)">💪 RIR 2 - Carga pesada controlada</option>
+            <option value="RIR 3-4 (Moderado)">🟢 RIR 3-4 - Moderado / Técnico</option>
+            <option value="Calentamiento">⚪ Calentamiento / Aproximación</option>
+          </select>
+        </div>
+
+        <div class="sets-header">
+          <span>Series</span>
+          <span>Kg / Reps</span>
+        </div>
+        <div id="sets-container" class="sets-container"></div>
+
+        <div class="builder-actions">
+          <button type="button" class="btn btn-secondary" id="btn-add-set">+ Añadir Serie</button>
+          <button type="button" class="btn btn-accent" id="btn-push-exercise">⬇️ Colocar en Rutina</button>
+        </div>
+      </div>
+
+      <div class="staged-exercises-container">
+        <h4>Ejercicios listos para guardar en esta sesión:</h4>
+        <div id="staged-list" class="staged-list"></div>
+      </div>
+
+      <button type="button" class="btn btn-primary" id="btn-save-full-session">✅ Guardar Rutina Completa</button>
+    </section>
+
+    <section class="card history-card">
+      <div class="card-header">
+        <h2>Historial de Rutinas</h2>
+        <button type="button" class="btn btn-danger-soft" id="btn-clear-day">Limpiar Historial</button>
+      </div>
+
+      <div id="history-container" class="history-list"></div>
+    </section>
+
+  </main>
+
+  <script>
+    (function() {
+      const STORAGE_KEYS = {
+        DAYS_NAMES: 'ironlog_days_names',
+        SESSIONS: 'ironlog_full_sessions'
+      };
+
+      const DEFAULT_DAYS = {
+        "1": "Día 1 - Empuje / Pecho",
+        "2": "Día 2 - Tracción / Espalda",
+        "3": "Día 3 - Pierna Cuádriceps",
+        "4": "Día 4 - Hombro & Core",
+        "5": "Día 5 - Pierna Posterior"
+      };
+
+      let activeDay = "1";
+      let stagedExercises = [];
+
+      const daysNav = document.getElementById('days-nav');
+      const dayNameInput = document.getElementById('day-name-input');
+      const btnSaveDayName = document.getElementById('btn-save-day-name');
+      const sessionTagInput = document.getElementById('session-tag');
+      const sessionCountBadge = document.getElementById('session-count-badge');
+      const exerciseNameInput = document.getElementById('exercise-name');
+      const exerciseCommentInput = document.getElementById('exercise-comment');
+      const exerciseIntensitySelect = document.getElementById('exercise-intensity');
+      const setsContainer = document.getElementById('sets-container');
+      const btnAddSet = document.getElementById('btn-add-set');
+      const btnPushExercise = document.getElementById('btn-push-exercise');
+      const stagedList = document.getElementById('staged-list');
+      const btnSaveFullSession = document.getElementById('btn-save-full-session');
+      const historyContainer = document.getElementById('history-container');
+      const btnClearDay = document.getElementById('btn-clear-day');
+      const btnExport = document.getElementById('btn-export');
+      const btnImportTrigger = document.getElementById('btn-import-trigger');
+      const fileImport = document.getElementById('file-import');
+
+      function init() {
+        ensureFiveDaysExist();
+        renderDaysNav();
+        loadCurrentDayInfo();
+        resetSetsContainer();
+        renderStagedExercises();
+        renderHistory();
+        setDefaultSessionTag();
+        bindEvents();
+      }
+
+      function ensureFiveDaysExist() {
+        const current = getDaysNames();
+        let updated = false;
+        for (let i = 1; i <= 5; i++) {
+          const key = String(i);
+          if (!current[key]) {
+            current[key] = DEFAULT_DAYS[key];
+            updated = true;
+          }
+        }
+        if (updated) {
+          localStorage.setItem(STORAGE_KEYS.DAYS_NAMES, JSON.stringify(current));
+        }
+      }
+
+      function bindEvents() {
+        daysNav.addEventListener('click', (e) => {
+          const tab = e.target.closest('.day-tab');
+          if (!tab) return;
+          activeDay = tab.dataset.day;
+          renderDaysNav();
+          loadCurrentDayInfo();
+          renderHistory();
+        });
+
+        btnSaveDayName.addEventListener('click', saveDayName);
+        btnAddSet.addEventListener('click', () => appendNewSetRow());
+        
+        setsContainer.addEventListener('click', (e) => {
+          if (e.target.classList.contains('btn-remove-set')) {
+            const rows = setsContainer.querySelectorAll('.set-row');
+            if (rows.length > 1) {
+              e.target.closest('.set-row').remove();
+              updateSetRowLabels();
+            }
+          }
+        });
+
+        stagedList.addEventListener('click', (e) => {
+          const delBtn = e.target.closest('.btn-remove-staged');
+          if (!delBtn) return;
+          const id = Number(delBtn.dataset.id);
+          stagedExercises = stagedExercises.filter(item => item.id !== id);
+          renderStagedExercises();
+        });
+
+        btnPushExercise.addEventListener('click', stageExercise);
+        btnSaveFullSession.addEventListener('click', saveCompleteSession);
+
+        btnClearDay.addEventListener('click', () => {
+          const dayNames = getDaysNames();
+          if (confirm(`¿Vaciar todo el historial de sesiones guardadas para ${dayNames[activeDay]}?`)) {
+            clearDaySessions(activeDay);
+          }
+        });
+
+        btnExport.addEventListener('click', exportData);
+        btnImportTrigger.addEventListener('click', () => fileImport.click());
+        fileImport.addEventListener('change', importData);
+      }
+
+      function setDefaultSessionTag() {
+        const today = new Date().toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+        sessionTagInput.value = `Sesión - ${today}`;
+      }
+
+      function getDaysNames() {
+        const stored = localStorage.getItem(STORAGE_KEYS.DAYS_NAMES);
+        return stored ? JSON.parse(stored) : { ...DEFAULT_DAYS };
+      }
+
+      function saveDayName() {
+        const newName = dayNameInput.value.trim();
+        if (!newName) {
+          alert("El nombre del día no puede estar vacío.");
+          return;
+        }
+        const dayNames = getDaysNames();
+        dayNames[activeDay] = newName;
+        localStorage.setItem(STORAGE_KEYS.DAYS_NAMES, JSON.stringify(dayNames));
+        renderDaysNav();
+        alert("Nombre del día actualizado.");
+      }
+
+      function renderDaysNav() {
+        const dayNames = getDaysNames();
+        daysNav.innerHTML = '';
+        for (let i = 1; i <= 5; i++) {
+          const dayKey = String(i);
+          const tab = document.createElement('button');
+          tab.type = 'button';
+          tab.className = `day-tab ${dayKey === activeDay ? 'active' : ''}`;
+          tab.dataset.day = dayKey;
+          tab.innerHTML = `
+            <span class="tab-index">Día ${dayKey}</span>
+            <span class="tab-name">${dayNames[dayKey] || DEFAULT_DAYS[dayKey]}</span>
+          `;
+          daysNav.appendChild(tab);
+        }
+      }
+
+      function loadCurrentDayInfo() {
+        const dayNames = getDaysNames();
+        dayNameInput.value = dayNames[activeDay] || DEFAULT_DAYS[activeDay];
+      }
+
+      function resetSetsContainer() {
+        setsContainer.innerHTML = '';
+        appendNewSetRow();
+      }
+
+      function appendNewSetRow() {
+        const rows = setsContainer.querySelectorAll('.set-row');
+        let defaultWeight = '';
+        let defaultReps = '';
+        if (rows.length > 0) {
+          const lastRow = rows[rows.length - 1];
+          defaultWeight = lastRow.querySelector('.set-weight').value;
+          defaultReps = lastRow.querySelector('.set-reps').value;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'set-row';
+        row.innerHTML = `
+          <span class="set-label">S${rows.length + 1}</span>
+          <div class="set-inputs">
+            <input type="number" placeholder="Kg" class="set-weight" value="${defaultWeight}" step="0.5">
+            <input type="number" placeholder="Reps" class="set-reps" value="${defaultReps}">
+          </div>
+          <button type="button" class="btn-remove-set" title="Quitar">✕</button>
+        `;
+        setsContainer.appendChild(row);
+        updateSetRowLabels();
+      }
+
+      function updateSetRowLabels() {
+        const rows = setsContainer.querySelectorAll('.set-row');
+        rows.forEach((row, idx) => {
+          row.querySelector('.set-label').textContent = `S${idx + 1}`;
+          const removeBtn = row.querySelector('.btn-remove-set');
+          removeBtn.style.visibility = (rows.length === 1) ? 'hidden' : 'visible';
+        });
+      }
+
+      function stageExercise() {
+        const name = exerciseNameInput.value.trim();
+        const comment = exerciseCommentInput.value.trim();
+        if (!name) {
+          alert("Indica el nombre del ejercicio.");
+          exerciseNameInput.focus();
+          return;
+        }
+
+        const rows = setsContainer.querySelectorAll('.set-row');
+        const validSets = [];
+
+        rows.forEach(row => {
+          const w = row.querySelector('.set-weight').value.trim();
+          const r = row.querySelector('.set-reps').value.trim();
+          if (w !== '' && r !== '') {
+            validSets.push({ weight: w, reps: r });
+          }
+        });
+
+        if (validSets.length === 0) {
+          alert("Completa al menos una serie con peso y repeticiones.");
+          return;
+        }
+
+        stagedExercises.push({
+          id: Date.now(),
+          name: name,
+          comment: comment,
+          intensity: exerciseIntensitySelect.value,
+          sets: validSets
+        });
+
+        renderStagedExercises();
+        exerciseNameInput.value = '';
+        exerciseCommentInput.value = '';
+        resetSetsContainer();
+      }
+
+      function renderStagedExercises() {
+        sessionCountBadge.textContent = `${stagedExercises.length} ejercicio(s)`;
+        stagedList.innerHTML = '';
+
+        if (stagedExercises.length === 0) {
+          stagedList.innerHTML = `<p style="font-size: 0.8rem; color: var(--text-muted);">No has agregado ejercicios a la sesión todavía.</p>`;
+          return;
+        }
+
+        stagedExercises.forEach(item => {
+          const el = document.createElement('div');
+          el.className = 'staged-item';
+          const commentHtml = item.comment ? `<span class="item-comment">(${item.comment})</span>` : '';
+          el.innerHTML = `
+            <div class="staged-info">
+              <h5>${item.name} ${commentHtml} <span class="intensity-pill">${item.intensity}</span></h5>
+              <p>${item.sets.length} series: ${item.sets.map((s, idx) => `S${idx + 1}(${s.weight}kg × ${s.reps})`).join(', ')}</p>
+            </div>
+            <button type="button" class="btn-remove-staged" data-id="${item.id}">✕</button>
+          `;
+          stagedList.appendChild(el);
+        });
+      }
+
+      function saveCompleteSession() {
+        const sessionTag = sessionTagInput.value.trim();
+        if (!sessionTag) {
+          alert("Coloca una etiqueta o fecha a la sesión.");
+          sessionTagInput.focus();
+          return;
+        }
+
+        if (stagedExercises.length === 0) {
+          alert("Agrega al menos un ejercicio con '⬇️ Colocar en Rutina' antes de archivar.");
+          return;
+        }
+
+        const allSessions = getAllSessions();
+        allSessions.push({
+          id: Date.now(),
+          dayId: activeDay,
+          tag: sessionTag,
+          timestamp: new Date().toLocaleDateString('es-ES', { 
+            day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+          }),
+          exercises: [...stagedExercises]
+        });
+
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+
+        stagedExercises = [];
+        renderStagedExercises();
+        setDefaultSessionTag();
+        renderHistory();
+        alert("¡Rutina completa archivada con éxito!");
+      }
+
+      function getAllSessions() {
+        const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        return data ? JSON.parse(data) : [];
+      }
+
+      function renderHistory() {
+        const allSessions = getAllSessions();
+        const daySessions = allSessions.filter(s => s.dayId === activeDay).reverse();
+
+        historyContainer.innerHTML = '';
+
+        if (daySessions.length === 0) {
+          historyContainer.innerHTML = `<p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 16px;">No hay rutinas archivadas para este día.</p>`;
+          return;
+        }
+
+        daySessions.forEach(session => {
+          const card = document.createElement('div');
+          card.className = 'session-card';
+
+          const exercisesHtml = session.exercises.map(ex => {
+            const commentHtml = ex.comment ? `<span class="item-comment">(${ex.comment})</span>` : '';
+            return `
+              <div class="session-exercise-entry">
+                <div class="entry-head">
+                  <span class="entry-title">${ex.name} ${commentHtml}</span>
+                  <span class="intensity-pill">${ex.intensity}</span>
+                </div>
+                <div class="sets-chips">
+                  ${ex.sets.map((s, idx) => `<span class="chip">S${idx + 1}: ${s.weight}kg × ${s.reps}</span>`).join('')}
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          card.innerHTML = `
+            <div class="session-card-header">
+              <div>
+                <h3 class="session-title-tag">${session.tag}</h3>
+                <span class="session-date">${session.timestamp}</span>
+              </div>
+              <span class="badge">${session.exercises.length} Ejercicios</span>
+            </div>
+            <div class="session-exercises-list">
+              ${exercisesHtml}
+            </div>
+          `;
+          historyContainer.appendChild(card);
+        });
+      }
+
+      function clearDaySessions(dayId) {
+        const allSessions = getAllSessions().filter(s => s.dayId !== dayId);
+        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+        renderHistory();
+      }
+
+      function exportData() {
+        const payload = { daysNames: getDaysNames(), sessions: getAllSessions() };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ironlog_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function importData(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target.result);
+            if (parsed.daysNames && parsed.sessions) {
+              localStorage.setItem(STORAGE_KEYS.DAYS_NAMES, JSON.stringify(parsed.daysNames));
+              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(parsed.sessions));
+              ensureFiveDaysExist();
+              renderDaysNav();
+              loadCurrentDayInfo();
+              renderHistory();
+              alert('Copia de seguridad restaurada correctamente.');
+            } else {
+              alert('Formato de archivo incompatible.');
+            }
+          } catch (err) {
+            alert('Error al leer el archivo JSON.');
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>

@@ -303,12 +303,12 @@
 
     .set-inputs {
       display: grid;
-      grid-template-columns: 1.1fr 1.1fr 1.2fr;
+      grid-template-columns: 1fr 1fr 1.2fr;
       flex: 1;
       gap: 6px;
     }
 
-    .set-inputs input, .set-inputs select {
+    .set-inputs input {
       padding: 8px 6px;
       font-size: 0.85rem;
     }
@@ -654,7 +654,7 @@
 
         <div class="sets-header">
           <span>Series</span>
-          <span>Kg / Reps / Descanso</span>
+          <span>Kg / Reps / Descanso (ej. 3,24s)</span>
         </div>
         <div id="sets-container" class="sets-container"></div>
 
@@ -697,6 +697,7 @@
       let activeDay = "1";
       let stagedExercises = [];
       let editingExerciseId = null;
+      let editingTargetSessionId = null;
 
       function getStoragePrefix() {
         return `ironlog_${currentProfile}_`;
@@ -756,6 +757,7 @@
           localStorage.setItem('ironlog_active_profile', currentProfile);
           stagedExercises = [];
           editingExerciseId = null;
+          editingTargetSessionId = null;
           exerciseBoxTitle.textContent = "Agregar Ejercicio";
           btnPushExercise.textContent = "⬇️ Colocar en Rutina";
           ensureFiveDaysExist();
@@ -878,13 +880,13 @@
         appendNewSetRow();
       }
 
-      function appendNewSetRow(initWeight = '', initReps = '', initRest = '90s') {
+      function appendNewSetRow(initWeight = '', initReps = '', initRest = '') {
         const rows = setsContainer.querySelectorAll('.set-row');
         let defaultWeight = initWeight;
         let defaultReps = initReps;
         let defaultRest = initRest;
 
-        if (rows.length > 0 && !initWeight && !initReps) {
+        if (rows.length > 0 && !initWeight && !initReps && !initRest) {
           const lastRow = rows[rows.length - 1];
           defaultWeight = lastRow.querySelector('.set-weight').value;
           defaultReps = lastRow.querySelector('.set-reps').value;
@@ -898,14 +900,7 @@
           <div class="set-inputs">
             <input type="number" placeholder="Kg" class="set-weight" value="${defaultWeight}" step="0.5">
             <input type="number" placeholder="Reps" class="set-reps" value="${defaultReps}">
-            <select class="set-rest">
-              <option value="45s" ${defaultRest === '45s' ? 'selected' : ''}>⏱️ 45s</option>
-              <option value="60s" ${defaultRest === '60s' ? 'selected' : ''}>⏱️ 60s</option>
-              <option value="90s" ${defaultRest === '90s' ? 'selected' : ''}>⏱️ 90s</option>
-              <option value="2m" ${defaultRest === '2m' ? 'selected' : ''}>⏱️ 2m</option>
-              <option value="3m" ${defaultRest === '3m' ? 'selected' : ''}>⏱️ 3m</option>
-              <option value="5m" ${defaultRest === '5m' ? 'selected' : ''}>⏱️ 5m</option>
-            </select>
+            <input type="text" placeholder="Desc. (ej. 3,24s)" class="set-rest" value="${defaultRest}">
           </div>
           <button type="button" class="btn-remove-set" title="Quitar">✕</button>
         `;
@@ -927,13 +922,14 @@
         if (!item) return;
 
         editingExerciseId = id;
+        editingTargetSessionId = null;
         exerciseNameInput.value = item.name;
         exerciseCommentInput.value = item.comment || '';
         exerciseIntensitySelect.value = item.intensity;
 
         setsContainer.innerHTML = '';
         item.sets.forEach(s => {
-          appendNewSetRow(s.weight, s.reps, s.rest || '90s');
+          appendNewSetRow(s.weight, s.reps, s.rest || '');
         });
 
         exerciseBoxTitle.textContent = "✏️ Editando Ejercicio";
@@ -948,29 +944,21 @@
         const ex = session.exercises.find(e => e.id === exId);
         if (!ex) return;
 
-        if (confirm(`¿Quieres cargar "${ex.name}" al editor para modificarlo? Se removerá del historial hasta que lo vuelvas a guardar en la sesión.`)) {
-          session.exercises = session.exercises.filter(e => e.id !== exId);
-          if (session.exercises.length === 0) {
-            clearDaySessions(activeDay);
-          } else {
-            localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(allSessions));
-          }
+        editingExerciseId = ex.id;
+        editingTargetSessionId = sessionId;
 
-          editingExerciseId = ex.id;
-          exerciseNameInput.value = ex.name;
-          exerciseCommentInput.value = ex.comment || '';
-          exerciseIntensitySelect.value = ex.intensity;
+        exerciseNameInput.value = ex.name;
+        exerciseCommentInput.value = ex.comment || '';
+        exerciseIntensitySelect.value = ex.intensity;
 
-          setsContainer.innerHTML = '';
-          ex.sets.forEach(s => {
-            appendNewSetRow(s.weight, s.reps, s.rest || '90s');
-          });
+        setsContainer.innerHTML = '';
+        ex.sets.forEach(s => {
+          appendNewSetRow(s.weight, s.reps, s.rest || '');
+        });
 
-          exerciseBoxTitle.textContent = "✏️ Editando Ejercicio del Historial";
-          btnPushExercise.textContent = "⬇️ Colocar en Rutina";
-          renderHistory();
-          exerciseNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+        exerciseBoxTitle.textContent = "✏️ Editando Ejercicio de la Rutina";
+        btnPushExercise.textContent = "💾 Guardar en esta Rutina";
+        exerciseNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
       function stageExercise() {
@@ -988,7 +976,7 @@
         rows.forEach(row => {
           const w = row.querySelector('.set-weight').value.trim();
           const r = row.querySelector('.set-reps').value.trim();
-          const rest = row.querySelector('.set-rest').value;
+          const rest = row.querySelector('.set-rest').value.trim();
           if (w !== '' && r !== '') {
             validSets.push({ weight: w, reps: r, rest: rest });
           }
@@ -999,28 +987,48 @@
           return;
         }
 
-        if (editingExerciseId) {
-          const idx = stagedExercises.findIndex(item => item.id === editingExerciseId);
-          if (idx !== -1) {
-            stagedExercises[idx] = {
+        if (editingTargetSessionId) {
+          const allSessions = getAllSessions();
+          const session = allSessions.find(s => s.id === editingTargetSessionId);
+          if (session) {
+            const exIndex = session.exercises.findIndex(e => e.id === editingExerciseId);
+            const updatedEx = {
               id: editingExerciseId,
               name: name,
               comment: comment,
               intensity: exerciseIntensitySelect.value,
               sets: validSets
             };
+            if (exIndex !== -1) {
+              session.exercises[exIndex] = updatedEx;
+            } else {
+              session.exercises.push(updatedEx);
+            }
+            localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(allSessions));
+            renderHistory();
+          }
+          editingExerciseId = null;
+          editingTargetSessionId = null;
+          exerciseBoxTitle.textContent = "Agregar Ejercicio";
+          btnPushExercise.textContent = "⬇️ Colocar en Rutina";
+        } else if (editingExerciseId) {
+          const idx = stagedExercises.findIndex(item => item.id === editingExerciseId);
+          const updatedItem = {
+            id: editingExerciseId,
+            name: name,
+            comment: comment,
+            intensity: exerciseIntensitySelect.value,
+            sets: validSets
+          };
+          if (idx !== -1) {
+            stagedExercises[idx] = updatedItem;
           } else {
-            stagedExercises.push({
-              id: editingExerciseId,
-              name: name,
-              comment: comment,
-              intensity: exerciseIntensitySelect.value,
-              sets: validSets
-            });
+            stagedExercises.push(updatedItem);
           }
           editingExerciseId = null;
           exerciseBoxTitle.textContent = "Agregar Ejercicio";
           btnPushExercise.textContent = "⬇️ Colocar en Rutina";
+          renderStagedExercises();
         } else {
           stagedExercises.push({
             id: Date.now(),
@@ -1029,9 +1037,9 @@
             intensity: exerciseIntensitySelect.value,
             sets: validSets
           });
+          renderStagedExercises();
         }
 
-        renderStagedExercises();
         exerciseNameInput.value = '';
         exerciseCommentInput.value = '';
         resetSetsContainer();
@@ -1053,7 +1061,7 @@
           el.innerHTML = `
             <div class="staged-info">
               <h5>${item.name} ${commentHtml} <span class="intensity-pill">${item.intensity}</span></h5>
-              <p>${item.sets.length} series: ${item.sets.map((s, idx) => `S${idx + 1}(${s.weight}kg × ${s.reps} \vert{}${s.rest || '90s'})`).join(', ')}</p>
+              <p>${item.sets.length} series: ${item.sets.map((s, idx) => `S${idx + 1}(${s.weight}kg × ${s.reps}${s.rest ? ' | ' + s.rest : ''})`).join(', ')}</p>
             </div>
             <div class="staged-actions">
               <button type="button" class="btn-edit-item" data-id="${item.id}" title="Editar">✏️</button>
@@ -1131,8 +1139,7 @@
                 <div class="sets-chips">
                   ${ex.sets.map((s, idx) => `
                     <span class="chip">
-                      S${idx + 1}: ${s.weight}kg × ${s.reps}
-                      <span class="chip-rest">${s.rest || '90s'}</span>
+                      S${idx + 1}: ${s.weight}kg × ${s.reps}${s.rest ? `<span class="chip-rest">${s.rest}</span>` : ''}
                     </span>
                   `).join('')}
                 </div>

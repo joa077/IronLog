@@ -77,14 +77,26 @@
 
     .header-actions {
       display: flex;
+      align-items: center;
       gap: 8px;
+    }
+
+    .select-profile {
+      background: var(--bg-input);
+      border: 1px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     .header-actions button {
       background: var(--bg-input);
       border: 1px solid var(--border-color);
       color: var(--text-muted);
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: var(--radius-sm);
       font-size: 0.8rem;
       cursor: pointer;
@@ -279,20 +291,26 @@
     .set-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .set-label {
-      width: 35px;
+      width: 32px;
       font-size: 0.8rem;
       font-weight: 700;
       color: var(--text-muted);
     }
 
     .set-inputs {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr 1.2fr;
       flex: 1;
-      gap: 8px;
+      gap: 6px;
+    }
+
+    .set-inputs input, .set-inputs select {
+      padding: 8px 6px;
+      font-size: 0.85rem;
     }
 
     .btn-remove-set {
@@ -301,7 +319,7 @@
       color: var(--text-muted);
       font-size: 1.2rem;
       cursor: pointer;
-      padding: 0 8px;
+      padding: 0 4px;
     }
 
     .btn-remove-set:hover { color: var(--accent-danger); }
@@ -388,6 +406,28 @@
       border-radius: var(--radius-sm);
     }
 
+    .staged-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-edit-item {
+      background: transparent;
+      border: none;
+      color: var(--accent-cyan);
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
+    .btn-remove-staged {
+      background: transparent;
+      border: none;
+      color: var(--accent-danger);
+      cursor: pointer;
+      font-size: 1.1rem;
+    }
+
     .staged-info h5 {
       font-size: 0.9rem;
       font-weight: 700;
@@ -409,14 +449,6 @@
       color: var(--text-main);
       font-weight: 600;
       margin-top: 4px;
-    }
-
-    .btn-remove-staged {
-      background: transparent;
-      border: none;
-      color: var(--accent-danger);
-      cursor: pointer;
-      font-size: 1.1rem;
     }
 
     .history-list {
@@ -508,6 +540,18 @@
       font-weight: 600;
       color: #ffffff;
       letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .chip-rest {
+      font-size: 0.65rem;
+      font-weight: normal;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.08);
+      padding: 1px 4px;
+      border-radius: 4px;
     }
   </style>
 </head>
@@ -520,6 +564,11 @@
         <h1>IronLog</h1>
       </div>
       <div class="header-actions">
+        <select id="profile-selector" class="select-profile" title="Seleccionar Perfil">
+          <option value="user1">👤 Perfil 1</option>
+          <option value="user2">👤 Perfil 2</option>
+          <option value="user3">👤 Perfil 3</option>
+        </select>
         <button id="btn-export" type="button">💾 Exportar</button>
         <button id="btn-import-trigger" type="button">📂 Importar</button>
         <input type="file" id="file-import" accept=".json" style="display: none;">
@@ -565,7 +614,7 @@
     <section class="card session-builder-card">
       <div class="card-header">
         <div>
-          <h2>Armar Sesión de Hoy</h2>
+          <h2 id="builder-mode-title">Armar Sesión de Hoy</h2>
           <span class="subtext">Agrega ejercicios y luego archiva la rutina completa</span>
         </div>
         <span class="badge" id="session-count-badge">0 ejercicios</span>
@@ -579,7 +628,7 @@
       <hr class="divider">
 
       <div class="add-exercise-box">
-        <h3 class="box-title">Agregar Ejercicio</h3>
+        <h3 class="box-title" id="exercise-box-title">Agregar Ejercicio</h3>
         
         <div class="exercise-comment-row">
           <div>
@@ -588,7 +637,7 @@
           </div>
           <div>
             <label for="exercise-comment">Observación / Nota</label>
-            <input type="text" id="exercise-comment" placeholder="Ej: Agarre cerrado, molestia hombro">
+            <input type="text" id="exercise-comment" placeholder="Ej: Agarre cerrado">
           </div>
         </div>
 
@@ -605,7 +654,7 @@
 
         <div class="sets-header">
           <span>Series</span>
-          <span>Kg / Reps</span>
+          <span>Kg / Reps / Descanso</span>
         </div>
         <div id="sets-container" class="sets-container"></div>
 
@@ -636,11 +685,6 @@
 
   <script>
     (function() {
-      const STORAGE_KEYS = {
-        DAYS_NAMES: 'ironlog_days_names',
-        SESSIONS: 'ironlog_full_sessions'
-      };
-
       const DEFAULT_DAYS = {
         "1": "Día 1 - Empuje / Pecho",
         "2": "Día 2 - Tracción / Espalda",
@@ -649,9 +693,16 @@
         "5": "Día 5 - Pierna Posterior"
       };
 
+      let currentProfile = localStorage.getItem('ironlog_active_profile') || 'user1';
       let activeDay = "1";
       let stagedExercises = [];
+      let editingExerciseId = null;
 
+      function getStoragePrefix() {
+        return `ironlog_${currentProfile}_`;
+      }
+
+      const profileSelector = document.getElementById('profile-selector');
       const daysNav = document.getElementById('days-nav');
       const dayNameInput = document.getElementById('day-name-input');
       const btnSaveDayName = document.getElementById('btn-save-day-name');
@@ -663,6 +714,7 @@
       const setsContainer = document.getElementById('sets-container');
       const btnAddSet = document.getElementById('btn-add-set');
       const btnPushExercise = document.getElementById('btn-push-exercise');
+      const exerciseBoxTitle = document.getElementById('exercise-box-title');
       const stagedList = document.getElementById('staged-list');
       const btnSaveFullSession = document.getElementById('btn-save-full-session');
       const historyContainer = document.getElementById('history-container');
@@ -672,6 +724,7 @@
       const fileImport = document.getElementById('file-import');
 
       function init() {
+        profileSelector.value = currentProfile;
         ensureFiveDaysExist();
         renderDaysNav();
         loadCurrentDayInfo();
@@ -693,11 +746,27 @@
           }
         }
         if (updated) {
-          localStorage.setItem(STORAGE_KEYS.DAYS_NAMES, JSON.stringify(current));
+          localStorage.setItem(getStoragePrefix() + 'days_names', JSON.stringify(current));
         }
       }
 
       function bindEvents() {
+        profileSelector.addEventListener('change', (e) => {
+          currentProfile = e.target.value;
+          localStorage.setItem('ironlog_active_profile', currentProfile);
+          stagedExercises = [];
+          editingExerciseId = null;
+          exerciseBoxTitle.textContent = "Agregar Ejercicio";
+          btnPushExercise.textContent = "⬇️ Colocar en Rutina";
+          ensureFiveDaysExist();
+          renderDaysNav();
+          loadCurrentDayInfo();
+          resetSetsContainer();
+          renderStagedExercises();
+          renderHistory();
+          setDefaultSessionTag();
+        });
+
         daysNav.addEventListener('click', (e) => {
           const tab = e.target.closest('.day-tab');
           if (!tab) return;
@@ -722,10 +791,26 @@
 
         stagedList.addEventListener('click', (e) => {
           const delBtn = e.target.closest('.btn-remove-staged');
-          if (!delBtn) return;
-          const id = Number(delBtn.dataset.id);
-          stagedExercises = stagedExercises.filter(item => item.id !== id);
-          renderStagedExercises();
+          if (delBtn) {
+            const id = Number(delBtn.dataset.id);
+            stagedExercises = stagedExercises.filter(item => item.id !== id);
+            renderStagedExercises();
+            return;
+          }
+          const editBtn = e.target.closest('.btn-edit-item');
+          if (editBtn) {
+            const id = Number(editBtn.dataset.id);
+            loadExerciseForEdit(id);
+          }
+        });
+
+        historyContainer.addEventListener('click', (e) => {
+          const editExBtn = e.target.closest('.btn-edit-history-exercise');
+          if (editExBtn) {
+            const sessionId = Number(editExBtn.dataset.sessionId);
+            const exId = Number(editExBtn.dataset.exId);
+            editArchivedExercise(sessionId, exId);
+          }
         });
 
         btnPushExercise.addEventListener('click', stageExercise);
@@ -733,7 +818,7 @@
 
         btnClearDay.addEventListener('click', () => {
           const dayNames = getDaysNames();
-          if (confirm(`¿Vaciar todo el historial de sesiones guardadas para ${dayNames[activeDay]}?`)) {
+          if (confirm(`¿Vaciar el historial de sesiones para ${dayNames[activeDay]} en este perfil?`)) {
             clearDaySessions(activeDay);
           }
         });
@@ -749,7 +834,7 @@
       }
 
       function getDaysNames() {
-        const stored = localStorage.getItem(STORAGE_KEYS.DAYS_NAMES);
+        const stored = localStorage.getItem(getStoragePrefix() + 'days_names');
         return stored ? JSON.parse(stored) : { ...DEFAULT_DAYS };
       }
 
@@ -761,7 +846,7 @@
         }
         const dayNames = getDaysNames();
         dayNames[activeDay] = newName;
-        localStorage.setItem(STORAGE_KEYS.DAYS_NAMES, JSON.stringify(dayNames));
+        localStorage.setItem(getStoragePrefix() + 'days_names', JSON.stringify(dayNames));
         renderDaysNav();
         alert("Nombre del día actualizado.");
       }
@@ -793,14 +878,17 @@
         appendNewSetRow();
       }
 
-      function appendNewSetRow() {
+      function appendNewSetRow(initWeight = '', initReps = '', initRest = '90s') {
         const rows = setsContainer.querySelectorAll('.set-row');
-        let defaultWeight = '';
-        let defaultReps = '';
-        if (rows.length > 0) {
+        let defaultWeight = initWeight;
+        let defaultReps = initReps;
+        let defaultRest = initRest;
+
+        if (rows.length > 0 && !initWeight && !initReps) {
           const lastRow = rows[rows.length - 1];
           defaultWeight = lastRow.querySelector('.set-weight').value;
           defaultReps = lastRow.querySelector('.set-reps').value;
+          defaultRest = lastRow.querySelector('.set-rest').value;
         }
 
         const row = document.createElement('div');
@@ -810,6 +898,14 @@
           <div class="set-inputs">
             <input type="number" placeholder="Kg" class="set-weight" value="${defaultWeight}" step="0.5">
             <input type="number" placeholder="Reps" class="set-reps" value="${defaultReps}">
+            <select class="set-rest">
+              <option value="45s" ${defaultRest === '45s' ? 'selected' : ''}>⏱️ 45s</option>
+              <option value="60s" ${defaultRest === '60s' ? 'selected' : ''}>⏱️ 60s</option>
+              <option value="90s" ${defaultRest === '90s' ? 'selected' : ''}>⏱️ 90s</option>
+              <option value="2m" ${defaultRest === '2m' ? 'selected' : ''}>⏱️ 2m</option>
+              <option value="3m" ${defaultRest === '3m' ? 'selected' : ''}>⏱️ 3m</option>
+              <option value="5m" ${defaultRest === '5m' ? 'selected' : ''}>⏱️ 5m</option>
+            </select>
           </div>
           <button type="button" class="btn-remove-set" title="Quitar">✕</button>
         `;
@@ -824,6 +920,57 @@
           const removeBtn = row.querySelector('.btn-remove-set');
           removeBtn.style.visibility = (rows.length === 1) ? 'hidden' : 'visible';
         });
+      }
+
+      function loadExerciseForEdit(id) {
+        const item = stagedExercises.find(ex => ex.id === id);
+        if (!item) return;
+
+        editingExerciseId = id;
+        exerciseNameInput.value = item.name;
+        exerciseCommentInput.value = item.comment || '';
+        exerciseIntensitySelect.value = item.intensity;
+
+        setsContainer.innerHTML = '';
+        item.sets.forEach(s => {
+          appendNewSetRow(s.weight, s.reps, s.rest || '90s');
+        });
+
+        exerciseBoxTitle.textContent = "✏️ Editando Ejercicio";
+        btnPushExercise.textContent = "💾 Actualizar en Rutina";
+        exerciseNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function editArchivedExercise(sessionId, exId) {
+        const allSessions = getAllSessions();
+        const session = allSessions.find(s => s.id === sessionId);
+        if (!session) return;
+        const ex = session.exercises.find(e => e.id === exId);
+        if (!ex) return;
+
+        if (confirm(`¿Quieres cargar "${ex.name}" al editor para modificarlo? Se removerá del historial hasta que lo vuelvas a guardar en la sesión.`)) {
+          session.exercises = session.exercises.filter(e => e.id !== exId);
+          if (session.exercises.length === 0) {
+            clearDaySessions(activeDay);
+          } else {
+            localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(allSessions));
+          }
+
+          editingExerciseId = ex.id;
+          exerciseNameInput.value = ex.name;
+          exerciseCommentInput.value = ex.comment || '';
+          exerciseIntensitySelect.value = ex.intensity;
+
+          setsContainer.innerHTML = '';
+          ex.sets.forEach(s => {
+            appendNewSetRow(s.weight, s.reps, s.rest || '90s');
+          });
+
+          exerciseBoxTitle.textContent = "✏️ Editando Ejercicio del Historial";
+          btnPushExercise.textContent = "⬇️ Colocar en Rutina";
+          renderHistory();
+          exerciseNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
 
       function stageExercise() {
@@ -841,8 +988,9 @@
         rows.forEach(row => {
           const w = row.querySelector('.set-weight').value.trim();
           const r = row.querySelector('.set-reps').value.trim();
+          const rest = row.querySelector('.set-rest').value;
           if (w !== '' && r !== '') {
-            validSets.push({ weight: w, reps: r });
+            validSets.push({ weight: w, reps: r, rest: rest });
           }
         });
 
@@ -851,13 +999,37 @@
           return;
         }
 
-        stagedExercises.push({
-          id: Date.now(),
-          name: name,
-          comment: comment,
-          intensity: exerciseIntensitySelect.value,
-          sets: validSets
-        });
+        if (editingExerciseId) {
+          const idx = stagedExercises.findIndex(item => item.id === editingExerciseId);
+          if (idx !== -1) {
+            stagedExercises[idx] = {
+              id: editingExerciseId,
+              name: name,
+              comment: comment,
+              intensity: exerciseIntensitySelect.value,
+              sets: validSets
+            };
+          } else {
+            stagedExercises.push({
+              id: editingExerciseId,
+              name: name,
+              comment: comment,
+              intensity: exerciseIntensitySelect.value,
+              sets: validSets
+            });
+          }
+          editingExerciseId = null;
+          exerciseBoxTitle.textContent = "Agregar Ejercicio";
+          btnPushExercise.textContent = "⬇️ Colocar en Rutina";
+        } else {
+          stagedExercises.push({
+            id: Date.now(),
+            name: name,
+            comment: comment,
+            intensity: exerciseIntensitySelect.value,
+            sets: validSets
+          });
+        }
 
         renderStagedExercises();
         exerciseNameInput.value = '';
@@ -881,9 +1053,12 @@
           el.innerHTML = `
             <div class="staged-info">
               <h5>${item.name} ${commentHtml} <span class="intensity-pill">${item.intensity}</span></h5>
-              <p>${item.sets.length} series: ${item.sets.map((s, idx) => `S${idx + 1}(${s.weight}kg × ${s.reps})`).join(', ')}</p>
+              <p>${item.sets.length} series: ${item.sets.map((s, idx) => `S${idx + 1}(${s.weight}kg × ${s.reps} \vert{}${s.rest || '90s'})`).join(', ')}</p>
             </div>
-            <button type="button" class="btn-remove-staged" data-id="${item.id}">✕</button>
+            <div class="staged-actions">
+              <button type="button" class="btn-edit-item" data-id="${item.id}" title="Editar">✏️</button>
+              <button type="button" class="btn-remove-staged" data-id="${item.id}" title="Eliminar">✕</button>
+            </div>
           `;
           stagedList.appendChild(el);
         });
@@ -913,7 +1088,7 @@
           exercises: [...stagedExercises]
         });
 
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+        localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(allSessions));
 
         stagedExercises = [];
         renderStagedExercises();
@@ -923,7 +1098,7 @@
       }
 
       function getAllSessions() {
-        const data = localStorage.getItem(STORAGE_KEYS.SESSIONS);
+        const data = localStorage.getItem(getStoragePrefix() + 'full_sessions');
         return data ? JSON.parse(data) : [];
       }
 
@@ -934,7 +1109,7 @@
         historyContainer.innerHTML = '';
 
         if (daySessions.length === 0) {
-          historyContainer.innerHTML = `<p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 16px;">No hay rutinas archivadas para este día.</p>`;
+          historyContainer.innerHTML = `<p style="font-size: 0.85rem; color: var(--text-muted); text-align: center; padding: 16px;">No hay rutinas archivadas para este día en este perfil.</p>`;
           return;
         }
 
@@ -948,10 +1123,18 @@
               <div class="session-exercise-entry">
                 <div class="entry-head">
                   <span class="entry-title">${ex.name} ${commentHtml}</span>
-                  <span class="intensity-pill">${ex.intensity}</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="intensity-pill">${ex.intensity}</span>
+                    <button type="button" class="btn-edit-item btn-edit-history-exercise" data-session-id="${session.id}" data-ex-id="${ex.id}" title="Editar este ejercicio">✏️</button>
+                  </div>
                 </div>
                 <div class="sets-chips">
-                  ${ex.sets.map((s, idx) => `<span class="chip">S${idx + 1}: ${s.weight}kg × ${s.reps}</span>`).join('')}
+                  ${ex.sets.map((s, idx) => `
+                    <span class="chip">
+                      S${idx + 1}: ${s.weight}kg × ${s.reps}
+                      <span class="chip-rest">${s.rest || '90s'}</span>
+                    </span>
+                  `).join('')}
                 </div>
               </div>
             `;
@@ -975,17 +1158,21 @@
 
       function clearDaySessions(dayId) {
         const allSessions = getAllSessions().filter(s => s.dayId !== dayId);
-        localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(allSessions));
+        localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(allSessions));
         renderHistory();
       }
 
       function exportData() {
-        const payload = { daysNames: getDaysNames(), sessions: getAllSessions() };
+        const payload = { 
+          profile: currentProfile,
+          daysNames: getDaysNames(), 
+          sessions: getAllSessions() 
+        };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `ironlog_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `ironlog_${currentProfile}_backup_${new Date().toISOString().split('T')[0]}.json`;
         a.click();
         URL.revokeObjectURL(url);
       }
@@ -998,13 +1185,13 @@
           try {
             const parsed = JSON.parse(event.target.result);
             if (parsed.daysNames && parsed.sessions) {
-              localStorage.setItem(STORAGE_KEYS.DAYS_NAMES, JSON.stringify(parsed.daysNames));
-              localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(parsed.sessions));
+              localStorage.setItem(getStoragePrefix() + 'days_names', JSON.stringify(parsed.daysNames));
+              localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(parsed.sessions));
               ensureFiveDaysExist();
               renderDaysNav();
               loadCurrentDayInfo();
               renderHistory();
-              alert('Copia de seguridad restaurada correctamente.');
+              alert(`Datos restaurados exitosamente en el perfil activo.`);
             } else {
               alert('Formato de archivo incompatible.');
             }

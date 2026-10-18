@@ -303,7 +303,7 @@
 
     .set-inputs {
       display: grid;
-      grid-template-columns: 1fr 1fr 1.2fr;
+      grid-template-columns: 1fr 1fr 1.3fr;
       flex: 1;
       gap: 6px;
     }
@@ -546,11 +546,11 @@
     }
 
     .chip-rest {
-      font-size: 0.65rem;
+      font-size: 0.7rem;
       font-weight: normal;
       color: var(--text-muted);
       background: rgba(255, 255, 255, 0.08);
-      padding: 1px 4px;
+      padding: 1px 5px;
       border-radius: 4px;
     }
   </style>
@@ -697,7 +697,6 @@
       let activeDay = "1";
       let stagedExercises = [];
       let editingExerciseId = null;
-      let editingTargetSessionId = null;
 
       function getStoragePrefix() {
         return `ironlog_${currentProfile}_`;
@@ -757,7 +756,6 @@
           localStorage.setItem('ironlog_active_profile', currentProfile);
           stagedExercises = [];
           editingExerciseId = null;
-          editingTargetSessionId = null;
           exerciseBoxTitle.textContent = "Agregar Ejercicio";
           btnPushExercise.textContent = "⬇️ Colocar en Rutina";
           ensureFiveDaysExist();
@@ -803,15 +801,6 @@
           if (editBtn) {
             const id = Number(editBtn.dataset.id);
             loadExerciseForEdit(id);
-          }
-        });
-
-        historyContainer.addEventListener('click', (e) => {
-          const editExBtn = e.target.closest('.btn-edit-history-exercise');
-          if (editExBtn) {
-            const sessionId = Number(editExBtn.dataset.sessionId);
-            const exId = Number(editExBtn.dataset.exId);
-            editArchivedExercise(sessionId, exId);
           }
         });
 
@@ -900,7 +889,7 @@
           <div class="set-inputs">
             <input type="number" placeholder="Kg" class="set-weight" value="${defaultWeight}" step="0.5">
             <input type="number" placeholder="Reps" class="set-reps" value="${defaultReps}">
-            <input type="text" placeholder="Desc. (ej. 3,24s)" class="set-rest" value="${defaultRest}">
+            <input type="text" placeholder="Descanso (ej. 3,24s)" class="set-rest" value="${defaultRest}">
           </div>
           <button type="button" class="btn-remove-set" title="Quitar">✕</button>
         `;
@@ -922,7 +911,6 @@
         if (!item) return;
 
         editingExerciseId = id;
-        editingTargetSessionId = null;
         exerciseNameInput.value = item.name;
         exerciseCommentInput.value = item.comment || '';
         exerciseIntensitySelect.value = item.intensity;
@@ -934,30 +922,6 @@
 
         exerciseBoxTitle.textContent = "✏️ Editando Ejercicio";
         btnPushExercise.textContent = "💾 Actualizar en Rutina";
-        exerciseNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      function editArchivedExercise(sessionId, exId) {
-        const allSessions = getAllSessions();
-        const session = allSessions.find(s => s.id === sessionId);
-        if (!session) return;
-        const ex = session.exercises.find(e => e.id === exId);
-        if (!ex) return;
-
-        editingExerciseId = ex.id;
-        editingTargetSessionId = sessionId;
-
-        exerciseNameInput.value = ex.name;
-        exerciseCommentInput.value = ex.comment || '';
-        exerciseIntensitySelect.value = ex.intensity;
-
-        setsContainer.innerHTML = '';
-        ex.sets.forEach(s => {
-          appendNewSetRow(s.weight, s.reps, s.rest || '');
-        });
-
-        exerciseBoxTitle.textContent = "✏️ Editando Ejercicio de la Rutina";
-        btnPushExercise.textContent = "💾 Guardar en esta Rutina";
         exerciseNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
 
@@ -987,31 +951,7 @@
           return;
         }
 
-        if (editingTargetSessionId) {
-          const allSessions = getAllSessions();
-          const session = allSessions.find(s => s.id === editingTargetSessionId);
-          if (session) {
-            const exIndex = session.exercises.findIndex(e => e.id === editingExerciseId);
-            const updatedEx = {
-              id: editingExerciseId,
-              name: name,
-              comment: comment,
-              intensity: exerciseIntensitySelect.value,
-              sets: validSets
-            };
-            if (exIndex !== -1) {
-              session.exercises[exIndex] = updatedEx;
-            } else {
-              session.exercises.push(updatedEx);
-            }
-            localStorage.setItem(getStoragePrefix() + 'full_sessions', JSON.stringify(allSessions));
-            renderHistory();
-          }
-          editingExerciseId = null;
-          editingTargetSessionId = null;
-          exerciseBoxTitle.textContent = "Agregar Ejercicio";
-          btnPushExercise.textContent = "⬇️ Colocar en Rutina";
-        } else if (editingExerciseId) {
+        if (editingExerciseId) {
           const idx = stagedExercises.findIndex(item => item.id === editingExerciseId);
           const updatedItem = {
             id: editingExerciseId,
@@ -1028,7 +968,6 @@
           editingExerciseId = null;
           exerciseBoxTitle.textContent = "Agregar Ejercicio";
           btnPushExercise.textContent = "⬇️ Colocar en Rutina";
-          renderStagedExercises();
         } else {
           stagedExercises.push({
             id: Date.now(),
@@ -1037,9 +976,9 @@
             intensity: exerciseIntensitySelect.value,
             sets: validSets
           });
-          renderStagedExercises();
         }
 
+        renderStagedExercises();
         exerciseNameInput.value = '';
         exerciseCommentInput.value = '';
         resetSetsContainer();
@@ -1131,10 +1070,7 @@
               <div class="session-exercise-entry">
                 <div class="entry-head">
                   <span class="entry-title">${ex.name} ${commentHtml}</span>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="intensity-pill">${ex.intensity}</span>
-                    <button type="button" class="btn-edit-item btn-edit-history-exercise" data-session-id="${session.id}" data-ex-id="${ex.id}" title="Editar este ejercicio">✏️</button>
-                  </div>
+                  <span class="intensity-pill">${ex.intensity}</span>
                 </div>
                 <div class="sets-chips">
                   ${ex.sets.map((s, idx) => `
